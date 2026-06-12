@@ -174,7 +174,6 @@ async function initDB() {
    MIDDLEWARE
 ════════════════════════════════════════════════════════════ */
 app.use(express.json());
-app.use(express.static(__dirname));
 
 /* ════════════════════════════════════════════════════════════
    HELPERS
@@ -592,6 +591,11 @@ app.post('/api/admin/delete_user.php', async (req, res) => {
     res.status(500).json({ error:e.message });
   } finally { client.release(); }
 });
+
+/* ════════════════════════════════════════════════════════════
+   STATIC FILES (after routes so PHP files are never served)
+════════════════════════════════════════════════════════════ */
+app.use(express.static(__dirname));
 
 /* ════════════════════════════════════════════════════════════
    START
