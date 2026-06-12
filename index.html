@@ -1275,7 +1275,17 @@ async function doLogout() {
       adminBtn.style.cssText = 'background:#111;color:#fff;border-color:#111;text-decoration:none;padding:5px 13px;';
       document.getElementById('hdUser').insertAdjacentElement('afterend', adminBtn);
     }
-  } catch(e) { console.error('Auth error:', e?.message || e); sessionStorage.removeItem('auth_token'); window.location.href = 'login.html'; return; }
+  } catch(e) {
+    const msg = e?.message || String(e);
+    const tok = sessionStorage.getItem('auth_token');
+    document.body.style.cssText = 'background:#111;color:#fff;font-family:monospace;padding:30px';
+    document.body.innerHTML = '<h2 style="color:#f55">Erro de sessão — debug</h2>'
+      + '<p><b>Erro:</b> ' + msg + '</p>'
+      + '<p><b>Token no sessionStorage:</b> ' + (tok ? 'SIM (' + tok.slice(0,20) + '…)' : 'NÃO (ausente)') + '</p>'
+      + '<p><b>Cookie header enviado:</b> ' + (document.cookie ? document.cookie.slice(0,60) : '(vazio)') + '</p>'
+      + '<br><a href="login.html" style="color:#6f6">Voltar ao login</a>';
+    return;
+  }
 
   App.data = await fetchDashboard();
   try {
