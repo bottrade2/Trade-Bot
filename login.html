@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOL Copy Trading — Acesso</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #f5f5f5;
+    --card:    #ffffff;
+    --border:  #e5e5e5;
+    --txt-1:   #111111;
+    --txt-2:   #666666;
+    --green:   #16a34a;
+    --red:     #dc2626;
+    --radius:  12px;
+  }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  @media (max-width:480px) {
+    body { padding:16px; align-items:flex-start; padding-top:40px; }
+    .card { padding:28px 18px; }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  }
+  .brand {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .brand-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: #111; margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-icon svg { color: #fff; }
+  .brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -.4px; }
+  .brand p  { font-size: 13px; color: var(--txt-2); margin-top: 4px; }
+
+  .tab-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px; background: var(--bg);
+    border-radius: 10px; padding: 4px;
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    padding: 9px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--txt-2);
+    transition: background .15s, color .15s;
+  }
+  .tab-btn.active { background: #fff; color: var(--txt-1); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+  .form { display: none; flex-direction: column; gap: 12px; }
+  .form.visible { display: flex; }
+
+  label { font-size: 12px; font-weight: 600; color: var(--txt-2); display: block; margin-bottom: 4px; }
+  input[type=text], input[type=email], input[type=password] {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 9px;
+    font-size: 14px; font-family: inherit; color: var(--txt-1);
+    background: #fff; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: #111; }
+
+  .submit-btn {
+    padding: 13px; border: none; border-radius: 10px;
+    background: #111; color: #fff;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    margin-top: 4px;
+    transition: background .15s, transform .1s;
+  }
+  .submit-btn:hover  { background: #333; }
+  .submit-btn:active { transform: scale(.98); }
+
+  .msg {
+    font-size: 12px; font-weight: 600; text-align: center;
+    min-height: 18px; padding: 2px 0;
+  }
+  .msg.err { color: var(--red); }
+  .msg.ok  { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+      </svg>
+    </div>
+    <h1>SOL Copy Trading</h1>
+    <p>Acede à tua conta ou cria uma nova</p>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" id="tabLogin"    onclick="switchTab('login')">Entrar</button>
+    <button class="tab-btn"        id="tabRegister" onclick="switchTab('register')">Criar Conta</button>
+  </div>
+
+  <!-- LOGIN -->
+  <form class="form visible" id="formLogin" onsubmit="doLogin(event)">
+    <div>
+      <label>Utilizador ou Email</label>
+      <input type="text" id="lUser" placeholder="username ou email" autocomplete="username" required>
+    </div>
+    <div>
+      <label>Palavra-passe</label>
+      <input type="password" id="lPass" placeholder="••••••••" autocomplete="current-password" required>
+    </div>
+    <div class="msg" id="loginMsg"></div>
+    <button class="submit-btn" type="submit">Entrar</button>
+  </form>
+
+  <!-- REGISTER -->
+  <form class="form" id="formRegister" onsubmit="doRegister(event)">
+    <div>
+      <label>Nome de utilizador</label>
+      <input type="text" id="rUser" placeholder="o_teu_username" autocomplete="username" required>
+    </div>
+    <div>
+      <label>Email</label>
+      <input type="email" id="rEmail" placeholder="email@exemplo.com" autocomplete="email" required>
+    </div>
+    <div>
+      <label>Palavra-passe <span style="color:var(--txt-2);font-weight:400">(mín. 6 caracteres)</span></label>
+      <input type="password" id="rPass" placeholder="••••••••" autocomplete="new-password" required>
+    </div>
+    <div>
+      <label>Confirmar palavra-passe</label>
+      <input type="password" id="rPass2" placeholder="••••••••" autocomplete="new-password" required>
+    </div>
+    <div class="msg" id="registerMsg"></div>
+    <button class="submit-btn" type="submit">Criar Conta</button>
+  </form>
+</div>
+
+<script>
+function switchTab(t) {
+  document.getElementById('formLogin').classList.toggle('visible', t === 'login');
+  document.getElementById('formRegister').classList.toggle('visible', t === 'register');
+  document.getElementById('tabLogin').classList.toggle('active', t === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', t === 'register');
+  document.getElementById('loginMsg').className    = 'msg';
+  document.getElementById('registerMsg').className = 'msg';
+}
+
+function setMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className   = 'msg ' + type;
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = e.submitter;
+  btn.disabled = true; btn.textContent = 'A entrar…';
+  try {
+    const res  = await fetch('api/auth/login.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: document.getElementById('lUser').value.trim(), password: document.getElementById('lPass').value }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setMsg('loginMsg', data.error, 'err'); return; }
+    window.location.href = 'index.html';
+  } catch { setMsg('loginMsg', 'Erro de ligação.', 'err'); }
+  finally   { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const pass  = document.getElementById('rPass').value;
+  const pass2 = document.getElementById('rPass2').value;
+  if (pass !== pass2) { setMsg('registerMsg', 'As palavras-passe não coincidem.', 'err'); return; }
+  const btn = e.submitter;
+  btn.disabled = true; btn.textContent = 'A criar conta…';
+  try {
+    const res  = await fetch('api/auth/register.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: document.getElementById('rUser').value.trim(), email: document.getElementById('rEmail').value.trim(), password: pass }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setMsg('registerMsg', data.error, 'err'); return; }
+    window.location.href = 'index.html';
+  } catch { setMsg('registerMsg', 'Erro de ligação.', 'err'); }
+  finally   { btn.disabled = false; btn.textContent = 'Criar Conta'; }
+}
+</script>
+</body>
+</html>

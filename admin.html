@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — SOL Copy Trading</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:     #f5f5f5;
+    --card:   #ffffff;
+    --border: #e5e5e5;
+    --txt1:   #111111;
+    --txt2:   #666666;
+    --green:  #16a34a;
+    --red:    #dc2626;
+    --r:      12px;
+  }
+  body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--txt1); min-height:100vh; }
+
+  /* ── Header ── */
+  .hdr {
+    background:#fff; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 28px; height:56px; position:sticky; top:0; z-index:10;
+  }
+  .hdr-left  { display:flex; align-items:center; gap:12px; }
+  .hdr-logo  { font-size:15px; font-weight:800; letter-spacing:-.3px; }
+  .hdr-badge { background:#111; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; letter-spacing:.5px; }
+  .hdr-right { display:flex; align-items:center; gap:10px; }
+  .btn-sm {
+    padding:7px 14px; border:1px solid var(--border); border-radius:8px;
+    font-size:12px; font-weight:600; cursor:pointer; background:#fff;
+    color:var(--txt1); text-decoration:none; display:inline-flex; align-items:center;
+    transition:background .15s;
+  }
+  .btn-sm:hover { background:var(--bg); }
+
+  /* ── Layout ── */
+  .main { max-width:1100px; margin:0 auto; padding:28px 20px; }
+  .page-title { font-size:22px; font-weight:800; letter-spacing:-.4px; margin-bottom:24px; }
+
+  /* ── Tabs ── */
+  .tab-row { display:flex; gap:4px; background:#ececec; border-radius:10px; padding:4px; width:fit-content; margin-bottom:24px; }
+  .tab-btn { padding:8px 18px; border:none; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--txt2); transition:background .15s,color .15s; }
+  .tab-btn.active { background:#fff; color:var(--txt1); box-shadow:0 1px 4px rgba(0,0,0,.08); }
+
+  /* ── Cards ── */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:20px 22px; }
+  .card-title { font-size:13px; font-weight:700; margin-bottom:16px; color:var(--txt1); }
+
+  /* ── Summary strip ── */
+  .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }
+  .stat-card { background:#fff; border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; }
+  .stat-label { font-size:11px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .stat-val   { font-size:22px; font-weight:800; letter-spacing:-.5px; }
+
+  /* ── Table ── */
+  .tbl-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 10px; font-size:11px; font-weight:700; color:var(--txt2); text-transform:uppercase; letter-spacing:.4px; border-bottom:2px solid var(--border); white-space:nowrap; }
+  td { padding:10px 10px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:#fafafa; }
+
+  /* ── User row actions ── */
+  .row-actions { display:flex; gap:6px; }
+  .btn-add, .btn-rem, .btn-hist, .btn-del {
+    padding:5px 11px; border:none; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer;
+    transition:opacity .15s;
+  }
+  .btn-add  { background:#dcfce7; color:#15803d; }
+  .btn-rem  { background:#fee2e2; color:#dc2626; }
+  .btn-hist { background:#f0f0f0; color:#444; }
+  .btn-del  { background:#111; color:#fff; }
+  .btn-add:hover,.btn-rem:hover,.btn-hist:hover,.btn-del:hover { opacity:.75; }
+
+  /* wallet address in history */
+  .wallet-addr { font-family:monospace; font-size:11px; color:var(--txt2); }
+
+  /* ── Modal ── */
+  .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:100; align-items:center; justify-content:center; }
+  .overlay.open { display:flex; }
+  .modal { background:#fff; border-radius:16px; padding:32px 28px; width:100%; max-width:380px; box-shadow:0 8px 40px rgba(0,0,0,.15); }
+  .modal h3 { font-size:17px; font-weight:800; margin-bottom:6px; }
+  .modal .sub { font-size:13px; color:var(--txt2); margin-bottom:20px; }
+  .modal label { font-size:12px; font-weight:600; color:var(--txt2); display:block; margin-bottom:5px; }
+  .modal input { width:100%; padding:10px 13px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; outline:none; margin-bottom:16px; }
+  .modal input:focus { border-color:#111; }
+  .modal-btns { display:flex; gap:8px; }
+  .modal-ok, .modal-cancel {
+    flex:1; padding:11px; border-radius:9px; border:none; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .modal-ok     { background:#111; color:#fff; }
+  .modal-ok:hover { background:#333; }
+  .modal-cancel { background:var(--bg); color:var(--txt1); }
+  .modal-cancel:hover { background:#e5e5e5; }
+  .modal-msg { font-size:12px; font-weight:600; min-height:18px; margin-bottom:10px; text-align:center; }
+  .modal-msg.err { color:var(--red); }
+  .modal-msg.ok  { color:var(--green); }
+
+  /* ── History section ── */
+  .hist-filter { display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+  .hist-filter select, .hist-filter button {
+    padding:8px 13px; border:1px solid var(--border); border-radius:8px;
+    font-size:13px; font-family:inherit; background:#fff; cursor:pointer;
+  }
+  .hist-filter button { font-weight:600; background:#111; color:#fff; border-color:#111; }
+  .hist-filter button:hover { background:#333; }
+
+  /* ── Badges ── */
+  .badge { display:inline-block; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:700; }
+  .badge-green { background:#dcfce7; color:#15803d; }
+  .badge-red   { background:#fee2e2; color:#dc2626; }
+  .badge-gray  { background:#f0f0f0; color:#555; }
+
+  /* ── Empty / loading ── */
+  .empty { text-align:center; color:var(--txt2); font-size:13px; padding:32px 0; }
+
+  /* ── Tab pages ── */
+  .tab-page { display:none; }
+  .tab-page.active { display:block; }
+
+  @media (max-width:768px) {
+    .main    { padding:20px 14px; }
+    .summary { grid-template-columns:repeat(2,1fr); }
+  }
+  @media (max-width:480px) {
+    .hdr     { padding:0 12px; }
+    .main    { padding:16px 12px; }
+    .summary { grid-template-columns:repeat(2,1fr); gap:8px; }
+    .stat-val { font-size:18px; }
+    .modal   { margin:0 10px; max-width:calc(100% - 20px); }
+  }
+
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <span class="hdr-logo">SOL Copy Trading</span>
+    <span class="hdr-badge">ADMIN</span>
+  </div>
+  <div class="hdr-right">
+    <span id="hdUser" style="font-size:13px;font-weight:600;color:var(--txt2)"></span>
+    <a href="index.html" class="btn-sm">Dashboard</a>
+    <button class="btn-sm" onclick="doLogout()" style="border-color:#fca5a5;color:var(--red)">Sair</button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="page-title">Painel de Administração</div>
+
+  <!-- Summary stats -->
+  <div class="summary">
+    <div class="stat-card">
+      <div class="stat-label">Utilizadores</div>
+      <div class="stat-val" id="sumUsers">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total em Carteiras</div>
+      <div class="stat-val" id="sumBalance">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Fundos Bot</div>
+      <div class="stat-val" id="sumBot">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Lucro Diário Total</div>
+      <div class="stat-val" id="sumProfit">—</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab-accounts" onclick="switchTab('accounts')">Contas</button>
+    <button class="tab-btn"        id="tab-history"  onclick="switchTab('history')">Histórico</button>
+  </div>
+
+  <!-- ── Accounts tab ── -->
+  <div class="tab-page active" id="page-accounts">
+    <div class="card">
+      <div class="card-title">Todas as Contas</div>
+      <div class="tbl-wrap">
+        <table id="usersTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Carteira Principal</th>
+              <th>Fundos Bot</th>
+              <th>Lucro Diário</th>
+              <th>Registado</th>
+              <th>Ações</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="usersTbody">
+            <tr><td colspan="9" class="empty">A carregar…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── History tab ── -->
+  <div class="tab-page" id="page-history">
+    <div class="card">
+      <div class="card-title">Histórico de Transações</div>
+      <div class="hist-filter">
+        <select id="histUserSel">
+          <option value="0">Todos os utilizadores</option>
+        </select>
+        <button onclick="loadHistory()">Filtrar</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Utilizador</th><th>Tipo</th><th>Valor (SOL)</th><th>Carteira Destino</th><th>Data</th></tr>
+          </thead>
+          <tbody id="histTbody">
+            <tr><td colspan="6" class="empty">Seleciona um utilizador e clica Filtrar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── Adjust funds modal ── -->
+<div class="overlay" id="adjustOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Ajustar Saldo</h3>
+    <div class="sub" id="modalSub"></div>
+    <label>Valor (SOL)</label>
+    <input type="number" id="modalAmount" min="0.0001" step="0.0001" placeholder="0.0000">
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-ok" id="modalOkBtn" onclick="confirmAdjust()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allUsers = [];
+let pendingAdjust = null; // { userId, username, type }
+
+/* ── Init ── */
+(async () => {
+  const me = await fetch('api/auth/me.php').then(r=>r.json()).catch(()=>null);
+  if (!me?.auth)     { location.href='login.html'; return; }
+  if (!me.is_admin)  { location.href='index.html'; return; }
+  document.getElementById('hdUser').textContent = me.username;
+  await loadUsers();
+})();
+
+/* ── Tab switch ── */
+function switchTab(name) {
+  ['accounts','history'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+    document.getElementById('page-'+t).classList.toggle('active', t===name);
+  });
+}
+
+/* ── Load users ── */
+async function loadUsers() {
+  const res  = await fetch('api/admin/users.php').then(r=>r.json()).catch(()=>null);
+  if (!res?.users) return;
+  allUsers = res.users;
+
+  let totalBal=0, totalBot=0, totalProfit=0;
+  allUsers.forEach(u => { totalBal+=u.balance; totalBot+=u.bot_funds; totalProfit+=u.daily_profit; });
+
+  document.getElementById('sumUsers').textContent   = allUsers.length;
+  document.getElementById('sumBalance').textContent = fmt(totalBal)+' SOL';
+  document.getElementById('sumBot').textContent     = fmt(totalBot)+' SOL';
+  document.getElementById('sumProfit').textContent  = fmt(totalProfit)+' SOL';
+
+  const tbody = document.getElementById('usersTbody');
+  tbody.innerHTML = allUsers.map(u => `
+    <tr>
+      <td style="color:var(--txt2)">${u.id}</td>
+      <td style="font-weight:700">${esc(u.username)}</td>
+      <td style="color:var(--txt2);font-size:12px">${esc(u.email)}</td>
+      <td>${fmt(u.balance)} SOL</td>
+      <td>${fmt(u.bot_funds)} SOL</td>
+      <td class="${u.daily_profit>=0?'':''}">
+        <span class="badge ${u.daily_profit>=0?'badge-green':'badge-red'}">${u.daily_profit>=0?'+':''}${fmt(u.daily_profit)} SOL</span>
+      </td>
+      <td style="font-size:12px;color:var(--txt2)">${u.created_at||'—'}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn-add"  onclick="openAdjust(${u.id},'${esc(u.username)}','add')">+ Depósito</button>
+          <button class="btn-rem"  onclick="openAdjust(${u.id},'${esc(u.username)}','remove')">− Remover</button>
+          <button class="btn-hist" onclick="openUserHistory(${u.id},'${esc(u.username)}')">Histórico</button>
+        </div>
+      </td>
+      <td><button class="btn-del" onclick="deleteUser(${u.id},'${esc(u.username)}')">Apagar</button></td>
+    </tr>
+  `).join('');
+
+  // Populate history filter
+  const sel = document.getElementById('histUserSel');
+  sel.innerHTML = '<option value="0">Todos os utilizadores</option>' +
+    allUsers.map(u=>`<option value="${u.id}">${esc(u.username)}</option>`).join('');
+}
+
+/* ── Open history for specific user ── */
+function openUserHistory(userId, username) {
+  switchTab('history');
+  document.getElementById('histUserSel').value = userId;
+  loadHistory();
+}
+
+/* ── Load history ── */
+async function loadHistory() {
+  const userId = parseInt(document.getElementById('histUserSel').value)||0;
+  const url    = userId ? `api/admin/history.php?user_id=${userId}&limit=100` : 'api/admin/history.php?limit=100';
+  const res    = await fetch(url).then(r=>r.json()).catch(()=>null);
+  const tbody  = document.getElementById('histTbody');
+  if (!res?.transactions?.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sem transações.</td></tr>'; return;
+  }
+  tbody.innerHTML = res.transactions.map(t => {
+    const sign = t.type.includes('Remoção')||t.type.includes('Levantamento')||t.type.includes('Compra') ? '-' : '+';
+    const cls  = sign==='+' ? 'badge-green' : 'badge-red';
+    const wallet = t.wallet_address
+      ? `<span class="wallet-addr" title="${esc(t.wallet_address)}">${esc(t.wallet_address.slice(0,8))}…${esc(t.wallet_address.slice(-4))}</span>`
+      : '<span style="color:#ccc">—</span>';
+    return `<tr>
+      <td style="color:var(--txt2)">${t.id}</td>
+      <td style="font-weight:600">${esc(t.username||'—')}</td>
+      <td>${esc(t.type)}</td>
+      <td><span class="badge ${cls}">${sign}${fmt(t.amount)} SOL</span></td>
+      <td>${wallet}</td>
+      <td style="font-size:12px;color:var(--txt2)">${esc(t.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Modal ── */
+function openAdjust(userId, username, type) {
+  pendingAdjust = { userId, username, type };
+  const isAdd = type==='add';
+  document.getElementById('modalTitle').textContent = isAdd ? 'Depositar Fundos' : 'Remover Fundos';
+  document.getElementById('modalSub').textContent   = `Conta: ${username}`;
+  document.getElementById('modalOkBtn').textContent = isAdd ? 'Depositar' : 'Remover';
+  document.getElementById('modalOkBtn').style.background = isAdd ? '#111' : '#dc2626';
+  document.getElementById('modalAmount').value = '';
+  document.getElementById('modalMsg').textContent = '';
+  document.getElementById('modalMsg').className   = 'modal-msg';
+  document.getElementById('adjustOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('modalAmount').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('adjustOverlay').classList.remove('open');
+  pendingAdjust = null;
+}
+
+async function confirmAdjust() {
+  if (!pendingAdjust) return;
+  const amount = parseFloat(document.getElementById('modalAmount').value);
+  if (!amount || amount <= 0) {
+    setModalMsg('Insere um valor válido.','err'); return;
+  }
+  const btn = document.getElementById('modalOkBtn');
+  btn.disabled = true; btn.textContent = 'A processar…';
+  try {
+    const res  = await fetch('api/admin/adjust.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: pendingAdjust.userId, amount, type: pendingAdjust.type }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setModalMsg(data.error||'Erro.','err'); return; }
+    setModalMsg(`Concluído. Saldo: ${fmt(data.balance)} SOL`, 'ok');
+    setTimeout(()=>{ closeModal(); loadUsers(); }, 1200);
+  } catch { setModalMsg('Erro de ligação.','err'); }
+  finally { btn.disabled=false; btn.textContent = pendingAdjust?.type==='add'?'Depositar':'Remover'; }
+}
+
+function setModalMsg(txt, cls) {
+  const el=document.getElementById('modalMsg');
+  el.textContent=txt; el.className='modal-msg '+cls;
+}
+
+/* ── Delete user ── */
+async function deleteUser(userId, username) {
+  if (!confirm(`Apagar a conta "${username}" e todos os seus dados?\n\nEsta ação é irreversível.`)) return;
+  try {
+    const res  = await fetch('api/admin/delete_user.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: userId }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Erro ao apagar.'); return; }
+    await loadUsers();
+  } catch { alert('Erro de ligação.'); }
+}
+
+/* ── Logout ── */
+async function doLogout() {
+  await fetch('api/auth/logout.php',{method:'POST'}).catch(()=>{});
+  location.href='login.html';
+}
+
+/* ── Helpers ── */
+function fmt(n)  { return (Math.round(n*10000)/10000).toFixed(4); }
+function esc(s)  { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+/* Close modal on overlay click */
+document.getElementById('adjustOverlay').addEventListener('click', e => {
+  if (e.target===e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
