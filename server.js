@@ -1,10 +1,10 @@
 'use strict';
 
-const express       = require('express');
-const cookieSession = require('cookie-session');
-const bcrypt        = require('bcryptjs');
+const express  = require('express');
+const bcrypt   = require('bcryptjs');
+const crypto   = require('crypto');
 const { Pool, neonConfig } = require('@neondatabase/serverless');
-const ws            = require('ws');
+const ws       = require('ws');
 
 neonConfig.webSocketConstructor = ws;
 
@@ -12,6 +12,56 @@ const app  = express();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 app.set('trust proxy', 1);
+
+/* ════════════════════════════════════════════════════════════
+   AUTH TOKEN (HMAC-SHA256, single cookie)
+════════════════════════════════════════════════════════════ */
+const SECRET = process.env.SESSION_SECRET || 'sol-trading-2024-secret-key-x9z';
+const COOKIE = 'auth_tok';
+
+function signToken(payload) {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig  = crypto.createHmac('sha256', SECRET).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+function parseToken(token) {
+  if (!token) return null;
+  const dot  = token.lastIndexOf('.');
+  if (dot < 1) return null;
+  const data = token.slice(0, dot);
+  const sig  = token.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', SECRET).update(data).digest('base64url');
+  if (sig !== expected) return null;
+  try { return JSON.parse(Buffer.from(data, 'base64url').toString()); } catch { return null; }
+}
+
+function readCookie(req, name) {
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 1) continue;
+    if (part.slice(0, eq).trim() === name)
+      return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return null;
+}
+
+function setAuthCookie(res, payload) {
+  res.cookie(COOKIE, signToken(payload), {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge:   7 * 24 * 60 * 60 * 1000,
+    path:     '/',
+  });
+}
+
+function getAuth(req) {
+  return parseToken(readCookie(req, COOKIE));
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie(COOKIE, { httpOnly: true, sameSite: 'lax', path: '/' });
+}
 
 /* ════════════════════════════════════════════════════════════
    SCHEMA
@@ -116,14 +166,6 @@ async function initDB() {
    MIDDLEWARE
 ════════════════════════════════════════════════════════════ */
 app.use(express.json());
-app.use(cookieSession({
-  name: 'sess',
-  keys: [process.env.SESSION_SECRET || 'sol-trading-2024-secret'],
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: false,
-}));
 app.use(express.static(__dirname));
 
 /* ════════════════════════════════════════════════════════════
@@ -151,14 +193,15 @@ async function checkDayReset(userId) {
 }
 
 function requireAuth(req, res) {
-  if (!req.session?.userId) { res.status(401).json({ error:'Não autenticado.', auth:false }); return null; }
-  return req.session.userId;
+  const tok = getAuth(req);
+  if (!tok?.userId) { res.status(401).json({ error:'Não autenticado.', auth:false }); return null; }
+  return tok.userId;
 }
 function requireAdmin(req, res) {
-  const uid = requireAuth(req, res);
-  if (!uid) return null;
-  if (!req.session.isAdmin) { res.status(403).json({ error:'Acesso negado.' }); return null; }
-  return uid;
+  const tok = getAuth(req);
+  if (!tok?.userId)  { res.status(401).json({ error:'Não autenticado.', auth:false }); return null; }
+  if (!tok.isAdmin)  { res.status(403).json({ error:'Acesso negado.' }); return null; }
+  return tok.userId;
 }
 
 function calcStatus(t) {
@@ -226,9 +269,7 @@ app.post('/api/auth/login.php', async (req, res) => {
 
   await pool.query('DELETE FROM login_attempts WHERE ip=$1', [ip]);
   await ensureAccount(user.id);
-  req.session.userId   = user.id;
-  req.session.username = user.username;
-  req.session.isAdmin  = user.is_admin;
+  setAuthCookie(res, { userId: user.id, username: user.username, isAdmin: user.is_admin });
   res.json({ id:user.id, username:user.username, is_admin:user.is_admin });
 });
 
@@ -250,20 +291,19 @@ app.post('/api/auth/register.php', async (req, res) => {
       [username, email, hash, isAdmin, nowDateTime()]
     );
     await ensureAccount(u.id);
-    req.session.userId   = u.id;
-    req.session.username = username;
-    req.session.isAdmin  = isAdmin;
+    setAuthCookie(res, { userId: u.id, username, isAdmin });
     res.json({ id:u.id, username, is_admin:isAdmin });
   } catch { res.status(409).json({ error:'Nome de utilizador ou email já em uso.' }); }
 });
 
 app.get('/api/auth/me.php', (req, res) => {
-  if (!req.session?.userId) return res.status(401).json({ auth:false });
-  res.json({ id:req.session.userId, username:req.session.username, is_admin:req.session.isAdmin||0, auth:true });
+  const tok = getAuth(req);
+  if (!tok?.userId) return res.status(401).json({ auth:false });
+  res.json({ id:tok.userId, username:tok.username, is_admin:tok.isAdmin||0, auth:true });
 });
 
 app.post('/api/auth/logout.php', (req, res) => {
-  req.session = null;
+  clearAuthCookie(res);
   res.json({ ok:true });
 });
 
