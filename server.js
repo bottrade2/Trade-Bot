@@ -1,11 +1,13 @@
 'use strict';
 
-const express  = require('express');
-const session  = require('express-session');
-const bcrypt   = require('bcryptjs');
+const express      = require('express');
+const session      = require('express-session');
+const MongoStore   = require('connect-mongo');
+const bcrypt       = require('bcryptjs');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
+app.set('trust proxy', 1);
 
 /* ════════════════════════════════════════════════════════════
    MONGODB
@@ -71,7 +73,8 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'sol-trading-2024-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 },
+  store: MongoStore.create({ mongoUrl: MONGO_URI }),
+  cookie: { secure: 'auto', maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 app.use(express.static(__dirname));
 
