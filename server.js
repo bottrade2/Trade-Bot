@@ -1,10 +1,10 @@
 'use strict';
 
-const express  = require('express');
-const session  = require('express-session');
-const bcrypt   = require('bcryptjs');
+const express       = require('express');
+const cookieSession = require('cookie-session');
+const bcrypt        = require('bcryptjs');
 const { Pool, neonConfig } = require('@neondatabase/serverless');
-const ws       = require('ws');
+const ws            = require('ws');
 
 neonConfig.webSocketConstructor = ws;
 
@@ -113,37 +113,16 @@ async function initDB() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   SESSION STORE (Neon)
-════════════════════════════════════════════════════════════ */
-class NeonSessionStore extends session.Store {
-  get(sid, cb) {
-    pool.query('SELECT data FROM sessions WHERE sid=$1 AND expires_at > NOW()', [sid])
-      .then(r => cb(null, r.rows[0] ? JSON.parse(r.rows[0].data) : null))
-      .catch(cb);
-  }
-  set(sid, data, cb) {
-    const exp = new Date(Date.now() + (data.cookie?.maxAge || 604800000));
-    pool.query(`INSERT INTO sessions(sid,data,expires_at) VALUES($1,$2,$3)
-                ON CONFLICT(sid) DO UPDATE SET data=$2, expires_at=$3`,
-      [sid, JSON.stringify(data), exp])
-      .then(() => cb(null)).catch(cb);
-  }
-  destroy(sid, cb) {
-    pool.query('DELETE FROM sessions WHERE sid=$1', [sid])
-      .then(() => cb(null)).catch(cb);
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
    MIDDLEWARE
 ════════════════════════════════════════════════════════════ */
 app.use(express.json());
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'sol-trading-2024-secret',
-  resave: false,
-  saveUninitialized: false,
-  store: new NeonSessionStore(),
-  cookie: { secure: 'auto', maxAge: 7 * 24 * 60 * 60 * 1000 },
+app.use(cookieSession({
+  name: 'sess',
+  keys: [process.env.SESSION_SECRET || 'sol-trading-2024-secret'],
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: false,
 }));
 app.use(express.static(__dirname));
 
@@ -284,7 +263,8 @@ app.get('/api/auth/me.php', (req, res) => {
 });
 
 app.post('/api/auth/logout.php', (req, res) => {
-  req.session.destroy(() => res.json({ ok:true }));
+  req.session = null;
+  res.json({ ok:true });
 });
 
 /* ════════════════════════════════════════════════════════════
