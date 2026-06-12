@@ -1,9 +1,8 @@
 'use strict';
 
-const express      = require('express');
-const session      = require('express-session');
-const MongoStore   = require('connect-mongo');
-const bcrypt       = require('bcryptjs');
+const express  = require('express');
+const session  = require('express-session');
+const bcrypt   = require('bcryptjs');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
@@ -69,11 +68,34 @@ async function connectDB() {
    MIDDLEWARE
 ════════════════════════════════════════════════════════════ */
 app.use(express.json());
+/* Store de sessão usando a ligação MongoDB já existente */
+class MongoSessionStore extends session.Store {
+  get(sid, cb) {
+    if (!db) return cb(null, null);
+    db.collection('sessions').findOne({ sid })
+      .then(s => {
+        if (!s || s.expiresAt < new Date()) return cb(null, null);
+        cb(null, s.data);
+      }).catch(cb);
+  }
+  set(sid, data, cb) {
+    if (!db) return cb(null);
+    const exp = new Date(Date.now() + (data.cookie?.maxAge || 604800000));
+    db.collection('sessions').replaceOne({ sid }, { sid, data, expiresAt: exp }, { upsert: true })
+      .then(() => cb(null)).catch(cb);
+  }
+  destroy(sid, cb) {
+    if (!db) return cb(null);
+    db.collection('sessions').deleteOne({ sid })
+      .then(() => cb(null)).catch(cb);
+  }
+}
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'sol-trading-2024-secret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: MONGO_URI }),
+  store: new MongoSessionStore(),
   cookie: { secure: 'auto', maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 app.use(express.static(__dirname));
