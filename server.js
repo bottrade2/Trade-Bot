@@ -47,15 +47,23 @@ function readCookie(req, name) {
 }
 
 function setAuthCookie(res, payload) {
-  res.cookie(COOKIE, signToken(payload), {
+  const token = signToken(payload);
+  res.cookie(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     maxAge:   7 * 24 * 60 * 60 * 1000,
     path:     '/',
   });
+  return token;
 }
 
 function getAuth(req) {
+  // Accept token from Authorization header (primary) or cookie (fallback)
+  const auth = req.headers.authorization || '';
+  if (auth.startsWith('Bearer ')) {
+    const tok = parseToken(auth.slice(7));
+    if (tok) return tok;
+  }
   return parseToken(readCookie(req, COOKIE));
 }
 
@@ -269,8 +277,8 @@ app.post('/api/auth/login.php', async (req, res) => {
 
   await pool.query('DELETE FROM login_attempts WHERE ip=$1', [ip]);
   await ensureAccount(user.id);
-  setAuthCookie(res, { userId: user.id, username: user.username, isAdmin: user.is_admin });
-  res.json({ id:user.id, username:user.username, is_admin:user.is_admin });
+  const loginToken = setAuthCookie(res, { userId: user.id, username: user.username, isAdmin: user.is_admin });
+  res.json({ id:user.id, username:user.username, is_admin:user.is_admin, token: loginToken });
 });
 
 app.post('/api/auth/register.php', async (req, res) => {
@@ -291,8 +299,8 @@ app.post('/api/auth/register.php', async (req, res) => {
       [username, email, hash, isAdmin, nowDateTime()]
     );
     await ensureAccount(u.id);
-    setAuthCookie(res, { userId: u.id, username, isAdmin });
-    res.json({ id:u.id, username, is_admin:isAdmin });
+    const regToken = setAuthCookie(res, { userId: u.id, username, isAdmin });
+    res.json({ id:u.id, username, is_admin:isAdmin, token: regToken });
   } catch { res.status(409).json({ error:'Nome de utilizador ou email já em uso.' }); }
 });
 

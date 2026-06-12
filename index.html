@@ -668,6 +668,20 @@
 <script>
 'use strict';
 
+/* ── Auth token via sessionStorage (bypasses cookie issues) ── */
+(function() {
+  const _orig = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    const token = sessionStorage.getItem('auth_token');
+    if (token && typeof url === 'string' && (url.startsWith('api/') || url.startsWith('/api/'))) {
+      opts = Object.assign({}, opts);
+      opts.headers = Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + token });
+    }
+    return _orig(url, opts);
+  };
+})();
+
 /* ──────────────────────────────────────────────────────────────
    MOCK DATA
    Estrutura idêntica à esperada da API /api/dashboard
@@ -1243,6 +1257,7 @@ const Funds = {
 ────────────────────────────────────────────────────────────── */
 async function doLogout() {
   await fetch('api/auth/logout.php', { method: 'POST' });
+  sessionStorage.removeItem('auth_token');
   window.location.href = 'login.html';
 }
 
@@ -1260,7 +1275,7 @@ async function doLogout() {
       adminBtn.style.cssText = 'background:#111;color:#fff;border-color:#111;text-decoration:none;padding:5px 13px;';
       document.getElementById('hdUser').insertAdjacentElement('afterend', adminBtn);
     }
-  } catch { window.location.href = 'login.html'; return; }
+  } catch(e) { console.error('Auth error:', e?.message || e); sessionStorage.removeItem('auth_token'); window.location.href = 'login.html'; return; }
 
   App.data = await fetchDashboard();
   try {

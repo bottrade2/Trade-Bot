@@ -177,6 +177,7 @@ async function doLogin(e) {
     });
     const data = await res.json();
     if (!res.ok) { setMsg('loginMsg', data.error, 'err'); return; }
+    if (data.token) sessionStorage.setItem('auth_token', data.token);
     window.location.href = 'index.html';
   } catch { setMsg('loginMsg', 'Erro de ligação.', 'err'); }
   finally   { btn.disabled = false; btn.textContent = 'Entrar'; }
@@ -196,6 +197,7 @@ async function doRegister(e) {
     });
     const data = await res.json();
     if (!res.ok) { setMsg('registerMsg', data.error, 'err'); return; }
+    if (data.token) sessionStorage.setItem('auth_token', data.token);
     window.location.href = 'index.html';
   } catch { setMsg('registerMsg', 'Erro de ligação.', 'err'); }
   finally   { btn.disabled = false; btn.textContent = 'Criar Conta'; }
